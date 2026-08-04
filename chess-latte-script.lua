@@ -585,8 +585,11 @@ local function getSearchHint()
 end
 
 local function findBestMove(board)
-    if not board:isPlayerTurn() then return {false,"Not your turn"} end
-    if board:willCauseDesync() then return {false,"Will cause desync"} end
+    local team = board:getLocalTeam()
+
+    if not team then
+        return {false, "Could not determine your team"}
+    end
 
     local fen = board:board2fen()
     if not fen then return {false,"Could not read board"} end
