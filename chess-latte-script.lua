@@ -229,12 +229,180 @@ function Board.getPiece(tileName)
     return nil
 end
 
-local _gameStatus = lplayer:FindFirstChild("PlayerGui"):FindFirstChild("GameStatus")
-local _white = _gameStatus:FindFirstChild("White")
-local _black = _gameStatus:FindFirstChild("Black")
+local playerGui = lplayer:FindFirstChild("PlayerGui")
+local _gameStatus = playerGui and playerGui:FindFirstChild("GameStatus")
+
+local _white = _gameStatus and _gameStatus:FindFirstChild("White")
+local _black = _gameStatus and _gameStatus:FindFirstChild("Black")
+
+
+local function normalizeText(value)
+    if type(value) ~= "string" then
+        return ""
+    end
+
+    return string.lower(value):gsub("%s+", " ")
+end
+
+
+local function instanceContainsPlayerName(instance)
+    if not instance then
+        return false
+    end
+
+    local username = normalizeText(lplayer.Name)
+    local robloxDisplayName = normalizeText(lplayer.DisplayName)
+    local memoryDisplayName = normalizeText(displayName)
+
+    local function matches(text)
+        text = normalizeText(text)
+
+        if text == "" then
+            return false
+        end
+
+        if username ~= "" and string.find(text, username, 1, true) then
+            return true
+        end
+
+        if robloxDisplayName ~= "" and string.find(text, robloxDisplayName, 1, true) then
+            return true
+        end
+
+        if memoryDisplayName ~= "" and string.find(text, memoryDisplayName, 1, true) then
+            return true
+        end
+
+        return false
+    end
+
+    local directTextOk, directText = pcall(function()
+        return instance.Text
+    end)
+
+    if directTextOk and matches(directText) then
+        return true
+    end
+
+    for _, descendant in ipairs(instance:GetDescendants()) do
+        local textOk, text = pcall(function()
+            return descendant.Text
+        end)
+
+        if textOk and matches(text) then
+            return true
+        end
+    end
+
+    return false
+end
+
+
+local function normalVisibleCheck(instance)
+    if not instance then
+        return false
+    end
+
+    local current = instance
+
+    while current and current ~= playerGui do
+        local visibleOk, visible = pcall(function()
+            return current.Visible
+        end)
+
+        if visibleOk and visible == false then
+            return false
+        end
+
+        local enabledOk, enabled = pcall(function()
+            return current.Enabled
+        end)
+
+        if enabledOk and enabled == false then
+            return false
+        end
+
+        current = current.Parent
+    end
+
+    return true
+end
+
 
 local function _isVisible(instance)
-    return memory_read("byte", instance.Address + Offsets.FrameVisible) == 1
+    if not instance then
+        return false
+    end
+
+    -- Prefer Roblox's normal Visible property.
+    local visibleOk, visible = pcall(function()
+        return instance.Visible
+    end)
+
+    if visibleOk then
+        return visible and normalVisibleCheck(instance)
+    end
+
+    -- Fall back to the memory offset only when normal properties
+    -- cannot be read.
+    if Offsets.FrameVisible then
+        local memoryOk, memoryVisible = pcall(function()
+            return memory_read(
+                "byte",
+                instance.Address + Offsets.FrameVisible
+            )
+        end)
+
+        if memoryOk then
+            return memoryVisible == 1
+        end
+    end
+
+    return false
+end
+
+
+function Board:getLocalTeam()
+    -- Refresh these references in case the game recreated its GUI.
+    playerGui = lplayer:FindFirstChild("PlayerGui")
+    _gameStatus = playerGui and playerGui:FindFirstChild("GameStatus")
+
+    _white = _gameStatus and _gameStatus:FindFirstChild("White")
+    _black = _gameStatus and _gameStatus:FindFirstChild("Black")
+
+    if instanceContainsPlayerName(_white) then
+        return "w"
+    end
+
+    if instanceContainsPlayerName(_black) then
+        return "b"
+    end
+
+    return nil
+end
+
+
+function Board:isPlayerTurn()
+    local team = self:getLocalTeam()
+
+    if not team then
+        State.LastOutput = "Could not determine your team"
+        return false
+    end
+
+    local frame = team == "w" and _white or _black
+
+    if not frame then
+        State.LastOutput = "Could not locate turn indicator"
+        return false
+    end
+
+    return _isVisible(frame)
+end
+
+
+function Board:willCauseDesync()
+    return not self:isPlayerTurn()
 end
 
 function Board:getLocalTeam()
