@@ -441,33 +441,6 @@ function Board:willCauseDesync()
     return not self:isPlayerTurn()
 end
 
-function Board:getLocalTeam()
-    local whiteInfo = _white:FindFirstChild("Info")
-    local blackInfo = _black:FindFirstChild("Info")
-
-    if whiteInfo and (string.find(whiteInfo.Text, lplayer.Name) or string.find(whiteInfo.Text, displayName)) then
-        return "w"
-    end
-
-    if blackInfo and (string.find(blackInfo.Text, lplayer.Name) or string.find(blackInfo.Text, displayName)) then
-        return "b"
-    end
-
-    return nil
-end
-
-function Board:isPlayerTurn()
-    local team = self:getLocalTeam()
-    if not team then return false end
-
-    local frame = (team == "w") and _white or _black
-    return _isVisible(frame)
-end
-
-function Board:willCauseDesync()
-    return not self:isPlayerTurn()
-end
-
 function Board:_scanBoard()
     local piecesFolder = Workspace:FindFirstChild("Pieces")
     if not piecesFolder then return nil end
