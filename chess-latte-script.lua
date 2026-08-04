@@ -362,20 +362,56 @@ local function _isVisible(instance)
 end
 
 
-function Board:getLocalTeam()
-    -- Refresh these references in case the game recreated its GUI.
-    playerGui = lplayer:FindFirstChild("PlayerGui")
-    _gameStatus = playerGui and playerGui:FindFirstChild("GameStatus")
-
-    _white = _gameStatus and _gameStatus:FindFirstChild("White")
-    _black = _gameStatus and _gameStatus:FindFirstChild("Black")
-
-    if instanceContainsPlayerName(_white) then
-        return "w"
+ffunction Board:getLocalTeam()
+    local playerGui = lplayer:FindFirstChild("PlayerGui")
+    if not playerGui then
+        return nil
     end
 
-    if instanceContainsPlayerName(_black) then
-        return "b"
+    local names = {
+        string.lower(lplayer.Name or ""),
+        string.lower(lplayer.DisplayName or ""),
+        string.lower(displayName or "")
+    }
+
+    local function containsPlayerName(text)
+        if type(text) ~= "string" then
+            return false
+        end
+
+        text = string.lower(text)
+
+        for _, name in ipairs(names) do
+            if name ~= "" and string.find(text, name, 1, true) then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    for _, object in ipairs(playerGui:GetDescendants()) do
+        local ok, text = pcall(function()
+            return object.Text
+        end)
+
+        if ok and containsPlayerName(text) then
+            local current = object
+
+            while current and current ~= playerGui do
+                local objectName = string.lower(current.Name)
+
+                if objectName == "white" then
+                    return "w"
+                end
+
+                if objectName == "black" then
+                    return "b"
+                end
+
+                current = current.Parent
+            end
+        end
     end
 
     return nil
