@@ -362,7 +362,7 @@ local function _isVisible(instance)
 end
 
 
-ffunction Board:getLocalTeam()
+function Board:getLocalTeam()
     local playerGui = lplayer:FindFirstChild("PlayerGui")
     if not playerGui then
         return nil
